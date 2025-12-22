@@ -13,8 +13,7 @@ class MainMenu:
         self.highlight_color = (0, 255, 255)
 
     def draw(self):
-        self.screen.fill((0, 0, 50))
-
+        # Background is handled in main.py, so we don't fill the screen here
         title_font = pygame.font.SysFont("arial", 80, bold=True)
         title = title_font.render("GALAGA RETRO", True, (255, 255, 0))
         self.screen.blit(
