@@ -12,6 +12,15 @@ pygame.display.set_caption("Galaxy Defenders")
 
 clock = pygame.time.Clock()
 
+# ---------------- BACKGROUND IMAGE ----------------
+bg_image_path = os.path.join("assets", "images", "menu_bg.jpg")
+if os.path.exists(bg_image_path):
+    bg_image = pygame.image.load(bg_image_path)
+    bg_image = pygame.transform.scale(bg_image, (WIDTH, HEIGHT))  # scale to full screen
+else:
+    bg_image = None
+    print("Menu background image missing!")
+
 # ---------------- MUSIC ----------------
 music_path = os.path.join("assets", "music", "menu.wav")
 if os.path.exists(music_path):
@@ -78,10 +87,17 @@ while running:
                     running = False
 
     # ---------------- DRAW ----------------
+    # Draw background first
+    if bg_image:
+        screen.blit(bg_image, (0, 0))
+    else:
+        screen.fill((10, 20, 40))  # fallback color
+
+    # Draw menu options
     menu.draw()
 
-    # Draw triangle arrow
-    arrow_y = ARROW_START_Y + menu.selected * ARROW_SPACING
+    # Draw triangle arrow (unaligned, as per your request)
+    arrow_y = ARROW_START_Y + menu.selected * ARROW_SPACING + ARROW_SIZE // 2
     pygame.draw.polygon(
         screen,
         (0, 255, 255),
