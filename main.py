@@ -1,20 +1,46 @@
 import pygame
 from ui.menu import MainMenu
+import os
 
+# ---------------- INIT ----------------
 pygame.init()
 pygame.mixer.init()
 
-pygame.mixer.music.load("assets/music/menu.wav")
-pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1)
-
 WIDTH, HEIGHT = 1300, 680
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Galaga Retro")
+pygame.display.set_caption("Galaxy Defenders")
 
 clock = pygame.time.Clock()
+
+# ---------------- MUSIC ----------------
+music_path = os.path.join("assets", "music", "menu.wav")
+if os.path.exists(music_path):
+    pygame.mixer.music.load(music_path)
+    pygame.mixer.music.set_volume(0.4)
+    pygame.mixer.music.play(-1)
+else:
+    print("Menu music missing!")
+
+# ---------------- SFX ----------------
+move_sfx_path = os.path.join("assets", "sounds", "menu_move.wav")
+select_sfx_path = os.path.join("assets", "sounds", "menu_select.wav")
+
+menu_move_sfx = pygame.mixer.Sound(move_sfx_path) if os.path.exists(move_sfx_path) else None
+menu_select_sfx = pygame.mixer.Sound(select_sfx_path) if os.path.exists(select_sfx_path) else None
+
+if menu_move_sfx: menu_move_sfx.set_volume(0.5)
+if menu_select_sfx: menu_select_sfx.set_volume(0.5)
+
+# ---------------- MENU ----------------
 menu = MainMenu(screen)
 
+# ---------------- ARROW ----------------
+ARROW_X = WIDTH // 2 - 150
+ARROW_START_Y = int(HEIGHT * 0.35)
+ARROW_SPACING = 70
+ARROW_SIZE = 20  # triangle width/height
+
+# ---------------- LOOP ----------------
 running = True
 while running:
     clock.tick(60)
@@ -22,39 +48,50 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.KEYDOWN:
+
+        if event.type == pygame.KEYDOWN:
+
             if event.key == pygame.K_UP:
+                old = menu.selected
                 menu.move_up()
-            elif event.key == pygame.K_DOWN:
+                if menu.selected != old and menu_move_sfx:
+                    menu_move_sfx.play()
+
+            if event.key == pygame.K_DOWN:
+                old = menu.selected
                 menu.move_down()
-            elif event.key == pygame.K_RETURN:
-                choice = menu.select()
-                if choice == "Play":
-                    screen.fill((0, 100, 0))
-                    play_font = pygame.font.SysFont("arial", 60, bold=True)
-                    play_text = play_font.render("PLAY SELECTED", True, (255, 255, 255))
-                    screen.blit(play_text, (WIDTH//2 - play_text.get_width()//2, HEIGHT//2 - play_text.get_height()//2))
-                    pygame.display.update()
-                    pygame.time.delay(1000)
-                elif choice == "Options":
-                    screen.fill((50, 0, 50))
-                    opt_font = pygame.font.SysFont("arial", 60, bold=True)
-                    opt_text = opt_font.render("OPTIONS SELECTED", True, (255, 255, 255))
-                    screen.blit(opt_text, (WIDTH//2 - opt_text.get_width()//2, HEIGHT//2 - opt_text.get_height()//2))
-                    pygame.display.update()
-                    pygame.time.delay(1000)
-                elif choice == "Credits":
-                    screen.fill((0, 0, 100))
-                    cred_font = pygame.font.SysFont("arial", 60, bold=True)
-                    cred_text = cred_font.render("CREDITS SELECTED", True, (255, 255, 255))
-                    screen.blit(cred_text, (WIDTH//2 - cred_text.get_width()//2, HEIGHT//2 - cred_text.get_height()//2))
-                    pygame.display.update()
-                    pygame.time.delay(1000)
-                elif choice == "Exit":
+                if menu.selected != old and menu_move_sfx:
+                    menu_move_sfx.play()
+
+            if event.key == pygame.K_RETURN:
+                if menu_select_sfx:
+                    menu_select_sfx.play()
+                selected = menu.selected
+
+                if selected == 0:  # Play
+                    print("START GAME")  # TODO: switch to game scene
+                elif selected == 1:  # Options
+                    print("OPTIONS")    # TODO: show options menu
+                elif selected == 2:  # Credits
+                    print("CREDITS")    # TODO: show credits screen
+                elif selected == 3:  # Exit
                     running = False
 
+    # ---------------- DRAW ----------------
     menu.draw()
+
+    # Draw triangle arrow
+    arrow_y = ARROW_START_Y + menu.selected * ARROW_SPACING
+    pygame.draw.polygon(
+        screen,
+        (0, 255, 255),
+        [
+            (ARROW_X, arrow_y),
+            (ARROW_X + ARROW_SIZE, arrow_y + ARROW_SIZE // 2),
+            (ARROW_X, arrow_y + ARROW_SIZE),
+        ]
+    )
+
     pygame.display.update()
 
-pygame.mixer.music.stop()
 pygame.quit()
