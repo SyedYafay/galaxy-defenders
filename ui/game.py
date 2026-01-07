@@ -50,8 +50,15 @@ class GameScene:
 
         self.bullets, self.enemy_bullets = [], []
 
-        self.wave, self.wave_timer = 1, 120
+        self.wave = 1
+        self.wave_timer = 120
+
+        # === DIFFICULTY VARIABLES (NEW) ===
         self.enemy_shoot_timer = 0
+        self.enemy_base_fire_rate = 70
+        self.enemy_bullet_speed = 6
+        self.enemy_move_dir = 1
+        self.enemy_move_offset = 0
 
         self.alien1 = pygame.transform.scale(
             pygame.image.load("assets/images/alien1.png").convert_alpha(), (50,50))
@@ -72,6 +79,7 @@ class GameScene:
 
         self.score = 0
         self.highscore = self.load_highscore()
+
         self.enemies = []
         self.create_wave()
 
@@ -98,6 +106,14 @@ class GameScene:
         self.wave_timer = 120
         self.state = self.WAVE_DELAY
 
+        # === DIFFICULTY SCALING (SAFE) ===
+        if self.wave >= 2:
+            self.enemy_base_fire_rate = max(35, 70 - self.wave*5)
+        if self.wave >= 4:
+            self.enemy_bullet_speed = min(10, 6 + (self.wave-3))
+        if self.wave < 3:
+            self.enemy_move_offset = 0
+
         cols = 10
         spacing = self.WIDTH//(cols+1)
         rows = min(self.wave+1,5)
@@ -108,7 +124,12 @@ class GameScene:
                 img = self.alien2 if strong else self.alien1
                 hp = 2 if strong else 1
                 rect = img.get_rect(center=((c+1)*spacing,100+r*80))
-                self.enemies.append({"rect":rect,"img":img,"hp":hp})
+                self.enemies.append({
+                    "rect":rect,
+                    "img":img,
+                    "hp":hp,
+                    "zigzag_phase": random.uniform(0, math.pi*2)
+                })
 
     def handle_input(self, events):
         for e in events:
@@ -150,7 +171,7 @@ class GameScene:
         self.player_rect.x = max(0,min(self.player_rect.x,
                                        self.WIDTH-self.player_rect.width))
 
-        # HIT EFFECT LOGIC
+        # === HIT EFFECT ===
         if self.hit_timer>0:
             self.hit_timer-=1
             self.flash_timer+=1
@@ -165,46 +186,62 @@ class GameScene:
             if s.life<=0:
                 self.sparks.remove(s)
 
+        # === PLAYER BULLETS ===
         for b in self.bullets[:]:
             b.y-=10
             if b.bottom<0:
                 self.bullets.remove(b)
 
-        self.enemy_shoot_timer+=1
-        if self.enemy_shoot_timer>60 and self.enemies:
-            shooter=random.choice(self.enemies)
+        # === ENEMY ZIG-ZAG (WAVE 3+) ===
+        if self.wave >= 3:
+            self.enemy_move_offset += 0.03 * self.enemy_move_dir
+            if abs(self.enemy_move_offset) > 1:
+                self.enemy_move_dir *= -1
+
+            for e in self.enemies:
+                e["zigzag_phase"] += 0.05
+                e["rect"].x += int(math.sin(e["zigzag_phase"]) * 2)
+
+        # === ENEMY SHOOTING (DIFFICULTY) ===
+        self.enemy_shoot_timer += 1
+        if self.enemy_shoot_timer >= self.enemy_base_fire_rate and self.enemies:
+            shooter = random.choice(self.enemies)
             self.enemy_bullets.append(
                 pygame.Rect(shooter["rect"].centerx,
                             shooter["rect"].bottom,6,12))
-            self.enemy_shoot_timer=0
+            self.enemy_shoot_timer = 0
 
+        # === ENEMY BULLETS ===
         for b in self.enemy_bullets[:]:
-            b.y+=6
+            b.y += self.enemy_bullet_speed
             if b.colliderect(self.player_rect):
                 self.enemy_bullets.remove(b)
-                self.lives-=1
-                self.hit_timer=120
-                self.flash_timer=0
-                self.show_hit_sprite=True  # IMMEDIATE
+                self.lives -= 1
+                self.hit_timer = 120
+                self.flash_timer = 0
+                self.show_hit_sprite = True
                 self.hit_sfx.play()
                 for _ in range(15):
                     self.sparks.append(Spark(self.player_rect.center))
-                if self.lives<=0:
-                    self.lives=0
-                    self.state=self.GAMEOVER
+                if self.lives <= 0:
+                    self.lives = 0
+                    self.state = self.GAMEOVER
+            elif b.top > self.HEIGHT:
+                self.enemy_bullets.remove(b)
 
+        # === COLLISIONS ===
         for b in self.bullets[:]:
             for e in self.enemies[:]:
                 if b.colliderect(e["rect"]):
-                    e["hp"]-=1
+                    e["hp"] -= 1
                     self.bullets.remove(b)
-                    if e["hp"]<=0:
+                    if e["hp"] <= 0:
                         self.enemies.remove(e)
-                        self.score+=100
+                        self.score += 100
                     break
 
         if not self.enemies:
-            self.wave+=1
+            self.wave += 1
             self.create_wave()
 
     def draw(self):
